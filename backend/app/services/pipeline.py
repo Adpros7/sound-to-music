@@ -336,8 +336,9 @@ class LilypondEngraver(BaseEngraver):
 
     def engrave(self, musicxml_path: Path, pdf_path: Path) -> None:
         ly_path = musicxml_path.with_suffix(".ly")
+        musicxml2ly_executable = self._musicxml2ly_executable()
         subprocess.run([
-            "musicxml2ly",
+            musicxml2ly_executable,
             str(musicxml_path),
             "-o",
             str(ly_path),
@@ -349,6 +350,19 @@ class LilypondEngraver(BaseEngraver):
             str(pdf_path.with_suffix("")),
             str(ly_path),
         ], check=True)
+
+    def _musicxml2ly_executable(self) -> str:
+        if settings.musicxml2ly_path:
+            return settings.musicxml2ly_path
+
+        lilypond_path = Path(self.executable)
+        if lilypond_path.is_absolute():
+            return str(lilypond_path.with_name("musicxml2ly"))
+
+        if lilypond_path.parent != Path("."):
+            return str(lilypond_path.parent / "musicxml2ly")
+
+        return "musicxml2ly"
 
 
 class MuseScoreEngraver(BaseEngraver):
