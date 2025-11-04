@@ -37,6 +37,7 @@ async def process_job(job: Job) -> None:
 async def startup_event() -> None:
     manager = JobManager(processor=process_job)
     app.state.job_manager = manager
+    await manager.load_existing_jobs()
     await manager.start()
     app.state.cleanup_task = asyncio.create_task(_cleanup_loop(manager))
 
