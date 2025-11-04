@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     job_retention_minutes: int = Field(default=30)
     engraver: str = Field(default_factory=lambda: os.getenv("ENGRAVER", "lilypond"))
     engraver_path: str | None = Field(default_factory=lambda: os.getenv("ENGRAVER_PATH"))
+    musicxml2ly_path: str | None = Field(default_factory=lambda: os.getenv("MUSICXML2LY_PATH"))
     basic_pitch_model_path: str | None = Field(default_factory=lambda: os.getenv("BASIC_PITCH_MODEL"))
     max_file_mb: int = Field(default=20)
     max_duration_seconds: int = Field(default=5 * 60)

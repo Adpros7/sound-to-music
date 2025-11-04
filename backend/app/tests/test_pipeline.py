@@ -8,6 +8,7 @@ import shutil
 import numpy as np
 import pytest
 import soundfile as sf
+import subprocess
 
 from ..models import ClefChoice, JobOptions, QuantizationGrid, Job
 from ..services.pipeline import (
@@ -16,7 +17,9 @@ from ..services.pipeline import (
     PipelineOptions,
     run_pipeline,
     BaseTranscriber,
+    LilypondEngraver,
 )
+from ..config import settings
 
 
 class MidiFixtureTranscriber(BaseTranscriber):
@@ -121,3 +124,34 @@ async def test_pipeline_generates_artifacts(tmp_path: Path, request: pytest.Fixt
     assert job.meta.note_count == expected_count
     assert job.meta.tempo == 120
     assert job.meta.key is not None
+
+
+def test_lilypond_engraver_resolves_musicxml2ly(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    lilypond_dir = tmp_path / "lilypond-bin"
+    lilypond_dir.mkdir()
+    lilypond_path = lilypond_dir / "lilypond"
+
+    monkeypatch.setenv("PATH", str(tmp_path / "empty-path"))
+    monkeypatch.setenv("ENGRAVER_PATH", str(lilypond_path))
+    monkeypatch.setattr(settings, "engraver_path", str(lilypond_path))
+    monkeypatch.setattr(settings, "musicxml2ly_path", None, raising=False)
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, *args, **kwargs):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    engraver = LilypondEngraver()
+    musicxml_path = tmp_path / "score.musicxml"
+    pdf_path = tmp_path / "output" / "score.pdf"
+    musicxml_path.write_text("<score/>")
+
+    engraver.engrave(musicxml_path, pdf_path)
+
+    assert len(calls) == 2
+    assert Path(calls[0][0]) == lilypond_path.with_name("musicxml2ly")
+    assert calls[0][1:] == [str(musicxml_path), "-o", str(musicxml_path.with_suffix(".ly"))]
+    assert calls[1][0] == str(lilypond_path)
