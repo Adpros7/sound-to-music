@@ -1,0 +1,18 @@
+{
+  "description": "Textual representation of the simple melody example formerly distributed as MIDI.",
+  "tempo_bpm": 96,
+  "time_signature": "4/4",
+  "ppq": 480,
+  "notes": [
+    { "measure": 1, "beat": 1.0, "pitch": "C4", "midi": 60, "duration_beats": 1.0, "velocity": 90 },
+    { "measure": 1, "beat": 2.0, "pitch": "D4", "midi": 62, "duration_beats": 1.0, "velocity": 90 },
+    { "measure": 1, "beat": 3.0, "pitch": "E4", "midi": 64, "duration_beats": 1.0, "velocity": 90 },
+    { "measure": 1, "beat": 4.0, "pitch": "G4", "midi": 67, "duration_beats": 2.0, "velocity": 96 }
+  ],
+  "regeneration_instructions": [
+    "Create a PrettyMIDI instance with resolution 480.",
+    "Set the global tempo to 96 BPM (quarter note = 96).",
+    "Add a single instrument on program 0 and emit the listed notes at the given beats.",
+    "Write the resulting object to disk using pretty_midi.PrettyMIDI.write()."
+  ]
+}
