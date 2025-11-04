@@ -9,21 +9,29 @@ import shutil
 
 from ..config import settings
 from ..models import Job, JobOptions, JobStatus
+from .job_store import JobStore
 
 
 Processor = Callable[[Job], Awaitable[None]]
 
 
 class JobManager:
-    def __init__(self, *, processor: Processor, retention: timedelta | None = None, base_url: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        processor: Processor,
+        retention: timedelta | None = None,
+        base_url: str | None = None,
+        store: JobStore | None = None,
+    ) -> None:
         self._queue: asyncio.Queue[Job] = asyncio.Queue()
         self._tasks: set[asyncio.Task[None]] = set()
-        self._jobs: dict[str, Job] = {}
         self._processor = processor
         self._retention = retention or timedelta(minutes=settings.job_retention_minutes)
         self._base_url = base_url
         self._worker_task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
+        self._store = store or JobStore(settings.storage_dir)
 
     async def start(self) -> None:
         if self._worker_task is None:
@@ -44,10 +52,9 @@ class JobManager:
         self._tasks.clear()
 
     async def allocate(self, options: JobOptions) -> Job:
-        async with self._lock:
-            job = Job.create(options=options, retention=self._retention, workdir=settings.storage_dir)
-            job.workdir.mkdir(parents=True, exist_ok=True)
-            self._jobs[job.id] = job
+        job = Job.create(options=options, retention=self._retention, workdir=settings.storage_dir)
+        job.workdir.mkdir(parents=True, exist_ok=True)
+        await self._save(job)
         return job
 
     async def enqueue(self, job: Job) -> None:
@@ -60,8 +67,7 @@ class JobManager:
         return job
 
     async def get(self, job_id: str) -> Job | None:
-        async with self._lock:
-            job = self._jobs.get(job_id)
+        job = await self._load(job_id)
         if job and job.expires_at <= self._now():
             await self._remove(job_id)
             return None
@@ -69,16 +75,17 @@ class JobManager:
 
     async def cleanup_expired(self) -> None:
         loop_time = self._now()
-        async with self._lock:
-            expired = [job_id for job_id, job in self._jobs.items() if job.expires_at <= loop_time]
-        for job_id in expired:
-            await self._remove(job_id)
+        jobs = await self._list_jobs()
+        for job in jobs:
+            if job.expires_at <= loop_time:
+                await self._remove(job.id)
 
     async def _worker(self) -> None:
         while True:
             job = await self._queue.get()
             job.status = JobStatus.running
             job.progress = 5
+            await self._save(job)
             task = asyncio.create_task(self._run_job(job))
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
@@ -93,11 +100,12 @@ class JobManager:
             job.error = str(exc)
             job.progress = 100
         finally:
+            await self._save(job)
             self._queue.task_done()
 
     async def _remove(self, job_id: str) -> None:
-        async with self._lock:
-            job = self._jobs.pop(job_id, None)
+        job = await self._load(job_id)
+        await self._delete(job_id)
         if job and job.workdir and job.workdir.exists():
             shutil.rmtree(job.workdir, ignore_errors=True)
 
@@ -107,3 +115,30 @@ class JobManager:
 
     async def discard(self, job_id: str) -> None:
         await self._remove(job_id)
+
+    async def load_existing_jobs(self) -> None:
+        jobs = await self._list_jobs()
+        now = self._now()
+        for job in jobs:
+            if job.expires_at <= now:
+                await self._remove(job.id)
+                continue
+            if job.status in {JobStatus.queued, JobStatus.running}:
+                job.status = JobStatus.queued
+                await self._save(job)
+                await self.enqueue(job)
+
+    async def _save(self, job: Job) -> None:
+        async with self._lock:
+            await asyncio.to_thread(self._store.save, job)
+
+    async def _load(self, job_id: str) -> Job | None:
+        return await asyncio.to_thread(self._store.get, job_id)
+
+    async def _delete(self, job_id: str) -> None:
+        async with self._lock:
+            await asyncio.to_thread(self._store.delete, job_id)
+
+    async def _list_jobs(self) -> list[Job]:
+        jobs = await asyncio.to_thread(lambda: list(self._store.list_jobs()))
+        return jobs
