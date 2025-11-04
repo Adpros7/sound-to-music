@@ -11,6 +11,7 @@ import type { JobArtifactUrls, JobOptions, JobStatusResponse } from '@/types/job
 
 const defaultOptions: JobOptions = {
   clef: 'treble',
+  instrument: 'piano',
   tempo: null,
   force_key: null,
   detect_time_signature: true,
@@ -121,6 +122,7 @@ export default function HomePage() {
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('clef', options.clef);
+      formData.append('instrument', options.instrument);
       if (options.tempo) {
         formData.append('tempo', String(options.tempo));
       }

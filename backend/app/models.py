@@ -38,8 +38,16 @@ class ClefChoice(str, enum.Enum):
     bass = "bass"
 
 
+class InstrumentChoice(str, enum.Enum):
+    piano = "piano"
+    cello = "cello"
+    viola = "viola"
+    violin = "violin"
+
+
 class JobOptions(BaseModel):
     clef: ClefChoice = ClefChoice.treble
+    instrument: InstrumentChoice = InstrumentChoice.piano
     tempo: Optional[int] = None
     force_key: Optional[str] = Field(default=None, description="Override key detection with explicit key e.g. C major")
     detect_time_signature: bool = True
@@ -64,6 +72,7 @@ class JobMeta(BaseModel):
     tempo: Optional[int] = None
     note_count: Optional[int] = None
     duration_seconds: Optional[float] = None
+    instrument: Optional[InstrumentChoice] = None
 
 
 class JobStatusResponse(BaseModel):

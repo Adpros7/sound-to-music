@@ -7,7 +7,14 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from ..config import settings
-from ..models import ClefChoice, JobCreateResponse, JobOptions, JobStatusResponse, QuantizationGrid
+from ..models import (
+    ClefChoice,
+    InstrumentChoice,
+    JobCreateResponse,
+    JobOptions,
+    JobStatusResponse,
+    QuantizationGrid,
+)
 from ..services.job_manager import JobManager
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -33,6 +40,7 @@ async def create_job(
     request: Request,
     file: UploadFile = File(...),
     clef: str = Form(ClefChoice.treble.value),
+    instrument: str = Form(InstrumentChoice.piano.value),
     tempo: str | None = Form(default=None),
     force_key: str | None = Form(default=None),
     detect_time_signature: str | None = Form(default="true"),
@@ -50,6 +58,7 @@ async def create_job(
     try:
         options = JobOptions(
             clef=ClefChoice(clef),
+            instrument=InstrumentChoice(instrument),
             tempo=int(tempo) if tempo else None,
             force_key=force_key or None,
             detect_time_signature=_sanitize_bool(detect_time_signature, default=True),
