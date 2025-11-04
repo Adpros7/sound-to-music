@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Iterable
 import shutil
 
@@ -174,3 +174,36 @@ def test_lilypond_engraver_resolves_musicxml2ly(monkeypatch: pytest.MonkeyPatch,
     assert Path(calls[0][0]) == lilypond_path.with_name("musicxml2ly")
     assert calls[0][1:] == [str(musicxml_path), "-o", str(musicxml_path.with_suffix(".ly"))]
     assert calls[1][0] == str(lilypond_path)
+
+
+def test_lilypond_engraver_preserves_suffix_for_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    windows_path = PureWindowsPath(r"C:\\Program Files\\LilyPond\\usr\\bin\\lilypond.exe")
+    monkeypatch.setattr(settings, "musicxml2ly_path", None, raising=False)
+
+    engraver = LilypondEngraver(str(windows_path))
+
+    assert (
+        engraver._musicxml2ly_executable()
+        == str(windows_path.with_name("musicxml2ly.exe"))
+    )
+
+
+def test_lilypond_engraver_preserves_suffix_for_relative_windows_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    relative_windows_path = PureWindowsPath(r"bin\\lilypond.exe")
+    monkeypatch.setattr(settings, "musicxml2ly_path", None, raising=False)
+
+    engraver = LilypondEngraver(str(relative_windows_path))
+
+    assert (
+        engraver._musicxml2ly_executable()
+        == str(relative_windows_path.parent / "musicxml2ly.exe")
+    )
+
+
+def test_lilypond_engraver_uses_pathext_when_no_suffix(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "musicxml2ly_path", None, raising=False)
+    monkeypatch.setenv("PATHEXT", ".EXE;.BAT")
+
+    engraver = LilypondEngraver("lilypond")
+
+    assert engraver._musicxml2ly_executable() == "musicxml2ly.EXE"

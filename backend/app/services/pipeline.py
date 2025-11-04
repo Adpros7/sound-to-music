@@ -4,7 +4,8 @@ import asyncio
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
+import os
+from pathlib import Path, PureWindowsPath
 from typing import Any, Optional
 
 import numpy as np
@@ -435,14 +436,39 @@ class LilypondEngraver(BaseEngraver):
         if settings.musicxml2ly_path:
             return settings.musicxml2ly_path
 
-        lilypond_path = Path(self.executable)
-        if lilypond_path.is_absolute():
-            return str(lilypond_path.with_name("musicxml2ly"))
+        raw_executable = self.executable
+        path_candidates: list[Path | PureWindowsPath] = []
+        if "\\" in raw_executable:
+            path_candidates.append(PureWindowsPath(raw_executable))
+        path_candidates.append(Path(raw_executable))
 
-        if lilypond_path.parent != Path("."):
-            return str(lilypond_path.parent / "musicxml2ly")
+        suffix = ""
+        for candidate in path_candidates:
+            if candidate.suffix:
+                suffix = candidate.suffix
+                break
 
-        return "musicxml2ly"
+        if not suffix:
+            pathext = os.environ.get("PATHEXT", "")
+            for ext in pathext.split(";"):
+                ext = ext.strip()
+                if not ext:
+                    continue
+                if not ext.startswith("."):
+                    ext = f".{ext}"
+                suffix = ext
+                break
+
+        sibling_name = f"musicxml2ly{suffix}" if suffix else "musicxml2ly"
+
+        for candidate in path_candidates:
+            current_dir = candidate.__class__(".")
+            if candidate.is_absolute():
+                return str(candidate.with_name(sibling_name))
+            if candidate.parent != current_dir:
+                return str(candidate.parent / sibling_name)
+
+        return sibling_name
 
 
 class MuseScoreEngraver(BaseEngraver):
