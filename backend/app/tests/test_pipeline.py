@@ -18,6 +18,7 @@ from ..services.pipeline import (
     run_pipeline,
     BaseTranscriber,
     LilypondEngraver,
+    MetadataBuilder,
 )
 from ..config import settings
 
@@ -124,6 +125,15 @@ async def test_pipeline_generates_artifacts(tmp_path: Path, request: pytest.Fixt
     assert job.meta.note_count == expected_count
     assert job.meta.tempo == 120
     assert job.meta.key is not None
+
+
+def test_metadata_builder_supports_bass_clef():
+    builder = MetadataBuilder()
+    bass_clef = builder._clef_for(ClefChoice.bass)
+
+    from music21 import clef as music21_clef
+
+    assert isinstance(bass_clef, music21_clef.BassClef)
 
 
 def test_lilypond_engraver_resolves_musicxml2ly(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
