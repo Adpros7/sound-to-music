@@ -22,6 +22,13 @@ const quantizationOptions = [
   { value: 'sixteenth', label: 'Sixteenth notes' }
 ] as const;
 
+const instrumentOptions = [
+  { value: 'piano', label: 'Piano' },
+  { value: 'violin', label: 'Violin' },
+  { value: 'viola', label: 'Viola' },
+  { value: 'cello', label: 'Cello' }
+] as const;
+
 export function OptionsForm({ options, onChange, disabled }: OptionsFormProps) {
   const handleChange = <K extends keyof JobOptions>(key: K, value: JobOptions[K]) => {
     onChange({ ...options, [key]: value });
@@ -49,6 +56,22 @@ export function OptionsForm({ options, onChange, disabled }: OptionsFormProps) {
             onChange={event => handleChange('clef', event.target.value as JobOptions['clef'])}
           >
             {clefs.map(item => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs uppercase tracking-wide text-slate-400">Instrument</label>
+          <select
+            className="w-full rounded-lg border border-slate-700 bg-slate-800/80 px-3 py-2 text-sm focus:border-accent focus:outline-none"
+            value={options.instrument}
+            disabled={disabled}
+            onChange={event => handleChange('instrument', event.target.value as JobOptions['instrument'])}
+          >
+            {instrumentOptions.map(item => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>

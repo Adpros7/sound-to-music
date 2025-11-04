@@ -10,7 +10,7 @@ import pytest
 import soundfile as sf
 import subprocess
 
-from ..models import ClefChoice, JobOptions, QuantizationGrid, Job
+from ..models import ClefChoice, InstrumentChoice, JobOptions, QuantizationGrid, Job
 from ..services.pipeline import (
     PipelineDependencies,
     PlaceholderEngraver,
@@ -87,19 +87,27 @@ def _build_job(tmp_path: Path, options: JobOptions) -> Job:
 
 @pytest.mark.parametrize("audio_fixture", ["sine_wave", "sine_wave_mp3"])
 @pytest.mark.parametrize(
-    "fixture_notes, expected_count",
+    "instrument_choice, fixture_notes, expected_count",
     [
-        ([[60, 64, 67]], 3),
-        ([[72], [74], [76], [77]], 4),
-        ([[60, 63], [62], [65, 69]], 5),
+        (InstrumentChoice.piano, [[60, 64, 67]], 3),
+        (InstrumentChoice.piano, [[72], [74], [76], [77]], 4),
+        (InstrumentChoice.viola, [[60, 64, 67]], 2),
     ],
 )
 @pytest.mark.asyncio
-async def test_pipeline_generates_artifacts(tmp_path: Path, request: pytest.FixtureRequest, audio_fixture, fixture_notes, expected_count):
+async def test_pipeline_generates_artifacts(
+    tmp_path: Path,
+    request: pytest.FixtureRequest,
+    audio_fixture,
+    instrument_choice: InstrumentChoice,
+    fixture_notes,
+    expected_count,
+):
     job = _build_job(
         tmp_path,
         JobOptions(
             clef=ClefChoice.treble,
+            instrument=instrument_choice,
             tempo=120,
             force_key=None,
             detect_time_signature=True,
@@ -125,6 +133,7 @@ async def test_pipeline_generates_artifacts(tmp_path: Path, request: pytest.Fixt
     assert job.meta.note_count == expected_count
     assert job.meta.tempo == 120
     assert job.meta.key is not None
+    assert job.meta.instrument == instrument_choice
 
 
 def test_metadata_builder_supports_bass_clef():

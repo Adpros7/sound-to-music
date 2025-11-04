@@ -5,13 +5,13 @@ import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import soundfile as sf
 
 from ..config import settings
-from ..models import ClefChoice, Job, JobMeta, QuantizationGrid
+from ..models import ClefChoice, InstrumentChoice, Job, JobMeta, QuantizationGrid
 
 try:  # pragma: no cover - optional dependency
     import librosa  # type: ignore
@@ -230,6 +230,20 @@ def _default_stub_midi() -> Path:
 
 
 class MidiQuantizer:
+    _PROGRAM_MAP = {
+        InstrumentChoice.piano: "Acoustic Grand Piano",
+        InstrumentChoice.violin: "Violin",
+        InstrumentChoice.viola: "Viola",
+        InstrumentChoice.cello: "Cello",
+    }
+
+    _POLYPHONY_CAPS = {
+        InstrumentChoice.piano: 10,
+        InstrumentChoice.violin: 2,
+        InstrumentChoice.viola: 2,
+        InstrumentChoice.cello: 2,
+    }
+
     def quantize(self, midi_input: Path, midi_output: Path, job: Job) -> None:
         import pretty_midi
 
@@ -248,8 +262,42 @@ class MidiQuantizer:
             for note in instrument.notes:
                 note.start = round(note.start / beat_length) * beat_length
                 note.end = max(note.start + beat_length, round(note.end / beat_length) * beat_length)
+            self._enforce_polyphony(instrument, job.options.instrument)
+            self._set_instrument_program(instrument, job.options.instrument)
         pm.remove_invalid_notes()
         pm.write(str(midi_output))
+
+    def _set_instrument_program(self, instrument, choice: InstrumentChoice) -> None:
+        import pretty_midi
+
+        program_name = self._PROGRAM_MAP.get(choice, self._PROGRAM_MAP[InstrumentChoice.piano])
+        try:
+            program = pretty_midi.instrument_name_to_program(program_name)
+        except ValueError:
+            program = 0
+        instrument.program = program
+        instrument.is_drum = False
+        instrument.name = program_name
+
+    def _enforce_polyphony(self, instrument, choice: InstrumentChoice) -> None:
+        cap = self._POLYPHONY_CAPS.get(choice)
+        if not cap:
+            return
+        if cap <= 0:
+            instrument.notes = []
+            return
+
+        notes = sorted(instrument.notes, key=lambda note: (note.start, -note.velocity, note.pitch))
+        active: list[Any] = []
+        kept = []
+        epsilon = 1e-5
+        for note in notes:
+            active = [n for n in active if n.end > note.start + epsilon]
+            if len(active) >= cap:
+                continue
+            kept.append(note)
+            active.append(note)
+        instrument.notes = sorted(kept, key=lambda note: note.start)
 
 
 class MetadataBuilder:
@@ -266,6 +314,9 @@ class MetadataBuilder:
         first_staff.insert(0, self._clef_for(job.options.clef))
         score.metadata = metadata.Metadata()
         score.metadata.title = "ScoreForge Transcription"
+        instrument_name = self._instrument_label(job.options.instrument)
+        score.metadata.instrumentation = instrument_name
+        self._apply_instrumentation(score, job.options.instrument)
 
         metronome_mark = None
         if job.options.tempo:
@@ -296,6 +347,7 @@ class MetadataBuilder:
             tempo=int(tempo_value) if tempo_value else None,
             note_count=note_count,
             duration_seconds=duration_seconds,
+            instrument=job.options.instrument,
         )
 
         if job.options.detect_time_signature:
@@ -324,6 +376,33 @@ class MetadataBuilder:
             ClefChoice.bass: clef.BassClef(),
         }
         return mapping[clef_choice]
+
+    def _instrument_label(self, instrument_choice: InstrumentChoice) -> str:
+        labels = {
+            InstrumentChoice.piano: "Piano",
+            InstrumentChoice.violin: "Violin",
+            InstrumentChoice.viola: "Viola",
+            InstrumentChoice.cello: "Cello",
+        }
+        return labels.get(instrument_choice, instrument_choice.value.title())
+
+    def _apply_instrumentation(self, score, instrument_choice: InstrumentChoice) -> None:
+        from music21 import instrument as m21_instrument
+
+        instrument_class = {
+            InstrumentChoice.piano: m21_instrument.Piano,
+            InstrumentChoice.violin: m21_instrument.Violin,
+            InstrumentChoice.viola: m21_instrument.Viola,
+            InstrumentChoice.cello: m21_instrument.Violoncello,
+        }.get(instrument_choice, m21_instrument.Piano)
+
+        name = self._instrument_label(instrument_choice)
+        parts_stream = list(score.parts) if score.parts else []
+        parts = parts_stream or [score]
+        for part in parts:
+            part.insert(0, instrument_class())
+            if not getattr(part, "partName", None):
+                part.partName = name
 
 
 class BaseEngraver:

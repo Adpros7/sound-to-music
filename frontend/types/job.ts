@@ -2,6 +2,7 @@ export type JobStatus = 'queued' | 'running' | 'done' | 'error';
 
 export type ClefChoice = 'treble' | 'alto' | 'tenor' | 'bass';
 export type QuantizationGrid = 'quarter' | 'eighth' | 'sixteenth';
+export type InstrumentChoice = 'piano' | 'cello' | 'viola' | 'violin';
 
 export interface JobMeta {
   title?: string;
@@ -10,6 +11,7 @@ export interface JobMeta {
   tempo?: number | null;
   note_count?: number | null;
   duration_seconds?: number | null;
+  instrument?: InstrumentChoice | null;
 }
 
 export interface JobArtifactUrls {
@@ -32,6 +34,7 @@ export interface CreateJobResponse {
 
 export interface JobOptions {
   clef: ClefChoice;
+  instrument: InstrumentChoice;
   tempo?: number | null;
   force_key?: string | null;
   detect_time_signature: boolean;
