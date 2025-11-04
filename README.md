@@ -1,6 +1,6 @@
 # ScoreForge (COMPLETLEY VIBE CODED)
 
-ScoreForge is a full-stack web application that converts short audio clips into engraved sheet music. Upload MP3, WAV, M4A, or FLAC files, pick a clef, and receive a downloadable PDF score alongside MusicXML and MIDI exports.
+ScoreForge is a full-stack web application that converts short audio clips into engraved sheet music. Upload MP3, WAV, M4A, or FLAC files, pick a clef, and receive a downloadable PDF score alongside MusicXML and MIDI exports. I'm testing vibe coding with this.
 
 ## Features
 
