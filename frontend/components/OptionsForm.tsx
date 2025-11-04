@@ -12,7 +12,8 @@ interface OptionsFormProps {
 const clefs = [
   { value: 'treble', label: 'Treble' },
   { value: 'alto', label: 'Alto' },
-  { value: 'tenor', label: 'Tenor' }
+  { value: 'tenor', label: 'Tenor' },
+  { value: 'bass', label: 'Bass' }
 ] as const;
 
 const quantizationOptions = [

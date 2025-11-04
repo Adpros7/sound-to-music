@@ -1,6 +1,6 @@
 export type JobStatus = 'queued' | 'running' | 'done' | 'error';
 
-export type ClefChoice = 'treble' | 'alto' | 'tenor';
+export type ClefChoice = 'treble' | 'alto' | 'tenor' | 'bass';
 export type QuantizationGrid = 'quarter' | 'eighth' | 'sixteenth';
 
 export interface JobMeta {

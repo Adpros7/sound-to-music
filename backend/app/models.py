@@ -35,6 +35,7 @@ class ClefChoice(str, enum.Enum):
     treble = "treble"
     alto = "alto"
     tenor = "tenor"
+    bass = "bass"
 
 
 class JobOptions(BaseModel):

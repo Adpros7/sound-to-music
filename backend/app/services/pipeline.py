@@ -321,6 +321,7 @@ class MetadataBuilder:
             ClefChoice.treble: clef.TrebleClef(),
             ClefChoice.alto: clef.AltoClef(),
             ClefChoice.tenor: clef.TenorClef(),
+            ClefChoice.bass: clef.BassClef(),
         }
         return mapping[clef_choice]
 
